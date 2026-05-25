@@ -1,0 +1,33 @@
+# Зависимости
+node_modules/
+/.pnp
+.pnp.js
+
+# Сборка
+dist/
+build/
+
+# Переменные окружения
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Логи
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Редакторы и IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Системные файлы
+Thumbs.db
+desktop.ini
