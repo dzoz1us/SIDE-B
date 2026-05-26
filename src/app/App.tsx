@@ -47,11 +47,11 @@ import AdminLogs from "../pages/admin/AdminLogs";
 import NotFound from "../pages/NotFound";
 import Forbidden from "../pages/Forbidden";
 
-type Role = "guest" | "user" | "manager" | "admin";
+type Role = "guest" | "customer" | "manager" | "admin";
 
 const ROLE_LEVEL: Record<Role, number> = {
   guest: 0,
-  user: 1,
+  customer: 1,
   manager: 2,
   admin: 3,
 };
@@ -65,7 +65,9 @@ function Router() {
 
   function guard(minRole: Role, component: React.ReactElement): React.ReactElement {
     if (!requireRole(minRole, role)) return <Forbidden />;
-    if (currentUser?.status === "blocked") return <Forbidden />;
+    if ((minRole === "manager" || minRole === "admin") && currentUser && !currentUser.is_active){
+      return <Forbidden />;
+    }
     return component;
   }
 
@@ -83,7 +85,7 @@ function Router() {
     case "register":      return <RegisterPage />;
 
     // User pages
-    case "my-bookings":   return guard("user", <MyBookingsPage />);
+    case "my-bookings":   return guard("customer", <MyBookingsPage />);
 
     // Manager pages
     case "manager":                   return guard("manager", <ManagerDashboard />);

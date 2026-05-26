@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState } from "react";
-import type { Role, Ensemble, Musician, EnsembleMember, Composition, Track, Branch, VinylRecord, RecordBranch, AppUser, Booking, ActionLog } from "../types";
-import {
-  INIT_ENSEMBLES, INIT_MUSICIANS, INIT_MEMBERS, INIT_COMPOSITIONS,
-  INIT_TRACKS, INIT_BRANCHES, INIT_RECORDS, INIT_RECORD_BRANCHES,
-  INIT_USERS, INIT_BOOKINGS, INIT_LOGS,
-} from "../data/mockData";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import type { Role } from "../types";
+import { useAuth } from "./AuthContext";
+import { getEnsembles } from "../services/ensembles";
+import { getRecords, getTopSellers } from "../services/records";
+import { getBranches } from "../services/branches";
+import { getMyReservations } from "../services/reservations";
 
 interface AppContextType {
   role: Role;
@@ -12,30 +12,25 @@ interface AppContextType {
   page: string;
   params: Record<string, any>;
   navigate: (page: string, params?: Record<string, any>) => void;
-  currentUser: AppUser | null;
+  currentUser: {
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    status: string;
+    is_active: boolean;
+  } | null;
 
-  ensembles: Ensemble[];
-  setEnsembles: React.Dispatch<React.SetStateAction<Ensemble[]>>;
-  musicians: Musician[];
-  setMusicians: React.Dispatch<React.SetStateAction<Musician[]>>;
-  members: EnsembleMember[];
-  setMembers: React.Dispatch<React.SetStateAction<EnsembleMember[]>>;
-  compositions: Composition[];
-  setCompositions: React.Dispatch<React.SetStateAction<Composition[]>>;
-  tracks: Track[];
-  setTracks: React.Dispatch<React.SetStateAction<Track[]>>;
-  branches: Branch[];
-  setBranches: React.Dispatch<React.SetStateAction<Branch[]>>;
-  records: VinylRecord[];
-  setRecords: React.Dispatch<React.SetStateAction<VinylRecord[]>>;
-  recordBranches: RecordBranch[];
-  setRecordBranches: React.Dispatch<React.SetStateAction<RecordBranch[]>>;
-  users: AppUser[];
-  setUsers: React.Dispatch<React.SetStateAction<AppUser[]>>;
-  bookings: Booking[];
-  setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
-  actionLogs: ActionLog[];
-  setActionLogs: React.Dispatch<React.SetStateAction<ActionLog[]>>;
+  ensembles: any[];
+  records: any[];
+  branches: any[];
+  bookings: any[];
+  topRecords: any[];
+
+  refreshEnsembles: () => void;
+  refreshRecords: () => void;
+  refreshBookings: () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -47,25 +42,54 @@ export function useApp() {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { user, handleLogout } = useAuth();
   const [role, setRoleState] = useState<Role>("guest");
   const [page, setPage] = useState("home");
   const [params, setParams] = useState<Record<string, any>>({});
 
-  const [ensembles, setEnsembles] = useState(INIT_ENSEMBLES);
-  const [musicians, setMusicians] = useState(INIT_MUSICIANS);
-  const [members, setMembers] = useState(INIT_MEMBERS);
-  const [compositions, setCompositions] = useState(INIT_COMPOSITIONS);
-  const [tracks, setTracks] = useState(INIT_TRACKS);
-  const [branches, setBranches] = useState(INIT_BRANCHES);
-  const [records, setRecords] = useState(INIT_RECORDS);
-  const [recordBranches, setRecordBranches] = useState(INIT_RECORD_BRANCHES);
-  const [users, setUsers] = useState(INIT_USERS);
-  const [bookings, setBookings] = useState(INIT_BOOKINGS);
-  const [actionLogs, setActionLogs] = useState(INIT_LOGS);
+  const [ensembles, setEnsembles] = useState<any[]>([]);
+  const [records, setRecords] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [topRecords, setTopRecords] = useState<any[]>([]);
+
+  // currentUser из AuthContext
+  const currentUser = user ? {
+    id: user.id,
+    email: user.email,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    role: user.role,
+    status: user.is_active ? "active" : "blocked",
+    is_active: user.is_active,
+  } : null;
+
+  useEffect(() => {
+    getEnsembles().then(setEnsembles).catch(console.error);
+    getRecords().then(setRecords).catch(console.error);
+    getBranches().then(setBranches).catch(console.error);
+    getTopSellers().then(setTopRecords).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      getMyReservations().then(setBookings).catch(console.error);
+    } else {
+      setBookings([]);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      setRoleState(user.role as Role);
+    } else {
+      setRoleState("guest");
+    }
+  }, [user]);
 
   function setRole(r: Role) {
-    setRoleState(r);
     if (r === "guest") {
+      handleLogout();
       setPage("home");
       setParams({});
     }
@@ -77,22 +101,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
   }
 
-  const currentUser = role === "guest" ? null : (users.find(u => u.role === role) ?? null);
+  const refreshEnsembles = useCallback(() => {
+    getEnsembles().then(setEnsembles).catch(console.error);
+  }, []);
+
+  const refreshRecords = useCallback(() => {
+    getRecords().then(setRecords).catch(console.error);
+    getTopSellers().then(setTopRecords).catch(console.error);
+  }, []);
+
+  const refreshBookings = useCallback(() => {
+    if (user) {
+      getMyReservations().then(setBookings).catch(console.error);
+    }
+  }, [user]);
 
   return (
     <AppContext.Provider value={{
       role, setRole, page, params, navigate, currentUser,
-      ensembles, setEnsembles,
-      musicians, setMusicians,
-      members, setMembers,
-      compositions, setCompositions,
-      tracks, setTracks,
-      branches, setBranches,
-      records, setRecords,
-      recordBranches, setRecordBranches,
-      users, setUsers,
-      bookings, setBookings,
-      actionLogs, setActionLogs,
+      ensembles, records, branches, bookings, topRecords,
+      refreshEnsembles, refreshRecords, refreshBookings,
     }}>
       {children}
     </AppContext.Provider>

@@ -31,3 +31,34 @@ pnpm-debug.log*
 # Системные файлы
 Thumbs.db
 desktop.ini
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+
+# Django
+backend/media/
+*.log
+db.sqlite3
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env

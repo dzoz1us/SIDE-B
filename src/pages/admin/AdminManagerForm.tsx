@@ -1,56 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
+import api from "../../services/api";
 import { PageTitle, Btn, FormInput } from "../../components/ui";
-import { nextId } from "../../utils/helpers";
 
 export default function AdminManagerForm() {
-  const { params, navigate, users, setUsers } = useApp();
+  const { params, navigate } = useApp();
   const isEdit = params.mode === "edit";
-  const existing = isEdit ? users.find(u => u.id === params.managerId) : null;
-
-  const [firstName, setFirstName] = useState(existing?.firstName ?? "");
-  const [lastName, setLastName] = useState(existing?.lastName ?? "");
-  const [email, setEmail] = useState(existing?.email ?? "");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
 
-  function handleSave(e: React.FormEvent) {
+  useEffect(() => {
+    if (isEdit && params.managerId) {
+      api.get(`/auth/managers/${params.managerId}/`).then(res => {
+        setFirstName(res.data.first_name || "");
+        setLastName(res.data.last_name || "");
+        setEmail(res.data.email || "");
+      });
+    }
+  }, [isEdit, params.managerId]);
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    const data: any = { email, first_name: firstName, last_name: lastName };
+    if (!isEdit && password) data.password = password;
 
-    if (!isEdit && password !== confirmPassword) {
-      setError("Пароли не совпадают");
-      return;
-    }
-
-    if (!isEdit && password.length < 6) {
-      setError("Пароль должен содержать не менее 6 символов");
-      return;
-    }
-
-    const emailExists = users.some(u => u.email === email && u.id !== existing?.id);
-    if (emailExists) {
-      setError("Пользователь с таким email уже существует");
-      return;
-    }
-
-    const now = new Date().toISOString();
-
-    if (isEdit && existing) {
-      setUsers(prev => prev.map(u =>
-        u.id === existing.id ? { ...u, firstName, lastName, email } : u
-      ));
+    if (isEdit && params.managerId) {
+      await api.patch(`/auth/managers/${params.managerId}/`, data);
     } else {
-      setUsers(prev => [...prev, {
-        id: nextId(prev),
-        firstName,
-        lastName,
-        email,
-        role: "manager",
-        status: "active",
-        createdAt: now,
-      }]);
+      await api.post("/auth/managers/create/", data);
     }
     navigate("admin-managers");
   }
@@ -58,38 +37,16 @@ export default function AdminManagerForm() {
   return (
     <div className="max-w-2xl mx-auto px-4 lg:px-8 py-10">
       <PageTitle title={isEdit ? "Редактировать менеджера" : "Добавить менеджера"} />
-      <button
-        onClick={() => navigate("admin-managers")}
-        className="text-xs text-muted-foreground hover:text-primary transition-colors mb-6 flex items-center gap-1"
-      >
-        ← Вернуться к менеджерам
-      </button>
-
       <div className="bg-card border border-border p-8">
         <form onSubmit={handleSave} className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-5">
-            <FormInput label="Имя" value={firstName} onChange={setFirstName} placeholder="Имя" required />
-            <FormInput label="Фамилия" value={lastName} onChange={setLastName} placeholder="Фамилия" required />
+            <FormInput label="Имя" value={firstName} onChange={setFirstName} required />
+            <FormInput label="Фамилия" value={lastName} onChange={setLastName} required />
           </div>
-          <FormInput label="Email" type="email" value={email} onChange={setEmail} placeholder="manager@sideb.ru" required />
-
+          <FormInput label="Email" type="email" value={email} onChange={setEmail} required />
           {!isEdit && (
-            <>
-              <FormInput label="Пароль" type="password" value={password} onChange={setPassword} placeholder="••••••••" required />
-              <FormInput label="Подтвердите пароль" type="password" value={confirmPassword} onChange={setConfirmPassword} placeholder="••••••••" required />
-            </>
+            <FormInput label="Пароль" type="password" value={password} onChange={setPassword} required />
           )}
-
-          {isEdit && (
-            <div className="bg-secondary/50 border border-border px-4 py-3 text-xs text-muted-foreground">
-              Для смены пароля используйте функцию сброса пароля.
-            </div>
-          )}
-
-          {error && (
-            <p className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 px-3 py-2">{error}</p>
-          )}
-
           <div className="flex gap-3 justify-end pt-3 border-t border-border">
             <Btn variant="ghost" onClick={() => navigate("admin-managers")}>Отмена</Btn>
             <Btn type="submit" variant="primary">Сохранить</Btn>

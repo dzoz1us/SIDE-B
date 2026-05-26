@@ -1,27 +1,30 @@
 import { useState } from "react";
 import { useApp } from "../../context/AppContext";
+import { useAuth } from "../../context/AuthContext";
+import { login } from "../../services/auth";
 import { Btn, FormInput } from "../../components/ui";
 
 export default function LoginPage() {
-  const { navigate, setRole } = useApp();
+  const { navigate } = useApp();
+  const { setUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const demoAccounts = [
-    { email: "ivan@example.com", label: "Пользователь", role: "user" as const },
-    { email: "dmitry@sideb.ru", label: "Менеджер", role: "manager" as const },
-    { email: "admin@sideb.ru", label: "Администратор", role: "admin" as const },
-  ];
-
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const demo = demoAccounts.find(a => a.email === email);
-    if (demo && password === "demo") {
-      setRole(demo.role);
+    setError("");
+    setLoading(true);
+    try {
+      const user = await login(email, password);
+      setUser(user);
       navigate("home");
-    } else {
-      setError("Неверный email или пароль. Используйте демо-аккаунт.");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.response?.data?.non_field_errors?.[0] || "Неверный email или пароль";
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -41,8 +44,8 @@ export default function LoginPage() {
             <FormInput label="Пароль" type="password" placeholder="••••••••"
               value={password} onChange={setPassword} required />
             {error && <p className="text-red-400 text-xs">{error}</p>}
-            <Btn type="submit" variant="primary" className="w-full justify-center py-2.5 mt-1">
-              Войти
+            <Btn type="submit" variant="primary" className="w-full justify-center py-2.5 mt-1" disabled={loading}>
+              {loading ? "Вход..." : "Войти"}
             </Btn>
           </form>
 
@@ -54,19 +57,11 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Demo accounts */}
         <div className="mt-5 bg-card border border-border/50 p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Демо-аккаунты (пароль: demo)</p>
-          <div className="flex flex-col gap-2">
-            {demoAccounts.map(acc => (
-              <button key={acc.role}
-                onClick={() => { setRole(acc.role); navigate("home"); }}
-                className="flex items-center justify-between text-xs text-left px-3 py-2 bg-secondary hover:bg-secondary/80 border border-border hover:border-primary/30 transition-colors">
-                <span className="text-foreground">{acc.label}</span>
-                <span className="text-muted-foreground">{acc.email}</span>
-              </button>
-            ))}
-          </div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Тестовый доступ</p>
+          <p className="text-xs text-muted-foreground">
+            Администратор: <span className="text-foreground">admin@vinyl.ru</span> / <span className="text-foreground">admin123</span>
+          </p>
         </div>
       </div>
     </div>

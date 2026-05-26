@@ -1,22 +1,35 @@
 import { useState } from "react";
 import { useApp } from "../../context/AppContext";
+import { useAuth } from "../../context/AuthContext";
+import { register } from "../../services/auth";
 import { Btn, FormInput } from "../../components/ui";
 
 export default function RegisterPage() {
   const { navigate } = useApp();
+  const { setUser } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleRegister(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     if (password !== confirm) { setError("Пароли не совпадают"); return; }
     if (password.length < 6) { setError("Пароль должен содержать минимум 6 символов"); return; }
-    // In a real app, would create user account; for demo just redirect to login
-    navigate("login");
+    setError("");
+    setLoading(true);
+    try {
+      const data = await register(email, password, firstName, lastName);
+      setUser(data.user);
+      navigate("home");
+    } catch (err: any) {
+      setError(err.response?.data?.email?.[0] || err.response?.data?.detail || "Ошибка регистрации");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -38,8 +51,8 @@ export default function RegisterPage() {
             <FormInput label="Пароль" type="password" placeholder="Минимум 6 символов" value={password} onChange={setPassword} required />
             <FormInput label="Подтверждение пароля" type="password" placeholder="Повторите пароль" value={confirm} onChange={setConfirm} required />
             {error && <p className="text-red-400 text-xs">{error}</p>}
-            <Btn type="submit" variant="primary" className="w-full justify-center py-2.5 mt-1">
-              Зарегистрироваться
+            <Btn type="submit" variant="primary" className="w-full justify-center py-2.5 mt-1" disabled={loading}>
+              {loading ? "Регистрация..." : "Зарегистрироваться"}
             </Btn>
           </form>
 

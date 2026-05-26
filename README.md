@@ -9,3 +9,12 @@
 
   Run `npm run dev` to start the development server.
   
+
+
+
+
+  Бэкенд запуск
+  python manage.py runserver
+
+  Фронтенд (React + Vite) запуск
+  npm run dev

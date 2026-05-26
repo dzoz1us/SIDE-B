@@ -1,42 +1,59 @@
 import { useState } from "react";
-import { X, Plus } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { PageTitle, Btn, FormInput, FormTextarea } from "../../components/ui";
-import { nextId } from "../../utils/helpers";
+import axios from 'axios';
 
 export default function AdminMusicianForm() {
-  const { params, navigate, musicians, setMusicians } = useApp();
+  const { params, navigate } = useApp();
   const isEdit = params.mode === "edit";
-  const existing = isEdit ? musicians.find(m => m.id === params.musicianId) : null;
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [biography, setBiography] = useState("");
+  const [instruments, setInstruments] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState("");
 
-  const [firstName, setFirstName] = useState(existing?.firstName ?? "");
-  const [lastName, setLastName] = useState(existing?.lastName ?? "");
-  const [birthDate, setBirthDate] = useState(existing?.birthDate ?? "");
-  const [bio, setBio] = useState(existing?.bio ?? "");
-  const [photo, setPhoto] = useState(existing?.photo ?? "");
-  const [instruments, setInstruments] = useState<string[]>(existing?.instruments ?? []);
-  const [newInst, setNewInst] = useState("");
-
-  function addInstrument() {
-    if (newInst.trim() && !instruments.includes(newInst.trim())) {
-      setInstruments(prev => [...prev, newInst.trim()]);
-      setNewInst("");
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhoto(file);
+      setPreview(URL.createObjectURL(file));
     }
   }
 
-  function removeInstrument(inst: string) {
-    setInstruments(prev => prev.filter(i => i !== inst));
-  }
-
-  function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    const data = { firstName, lastName, birthDate, bio, photo, instruments };
-    if (isEdit && existing) {
-      setMusicians(prev => prev.map(m => m.id === existing.id ? { ...m, ...data } : m));
-    } else {
-      setMusicians(prev => [...prev, { id: nextId(prev), ...data }]);
+    const token = localStorage.getItem('access_token');
+    const formData = new FormData();
+    formData.append('first_name', firstName);
+    formData.append('last_name', lastName);
+    if (birthDate) formData.append('birth_date', birthDate);
+    formData.append('biography', biography);
+    formData.append('instruments', instruments);
+    if (photo) {
+      formData.append('image', photo);
     }
-    navigate("admin-musicians");
+
+    const url = isEdit && params.musicianId
+      ? `http://127.0.0.1:8000/api/v1/musicians/${params.musicianId}/`
+      : 'http://127.0.0.1:8000/api/v1/musicians/';
+
+    try {
+      if (isEdit) {
+        await axios.patch(url, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        await axios.post(url, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      navigate("admin-musicians");
+    } catch (err: any) {
+      console.error('Ошибка сохранения:', err);
+      alert(err.response?.data?.detail || JSON.stringify(err.response?.data) || 'Ошибка сохранения');
+    }
   }
 
   return (
@@ -45,40 +62,29 @@ export default function AdminMusicianForm() {
       <div className="bg-card border border-border p-8">
         <form onSubmit={handleSave} className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-5">
-            <FormInput label="Имя" value={firstName} onChange={setFirstName} placeholder="Имя" required />
-            <FormInput label="Фамилия" value={lastName} onChange={setLastName} placeholder="Фамилия" required />
+            <FormInput label="Имя" value={firstName} onChange={setFirstName} required />
+            <FormInput label="Фамилия" value={lastName} onChange={setLastName} required />
           </div>
-          <FormInput label="Дата рождения" type="date" value={birthDate} onChange={setBirthDate} required />
-          <FormTextarea label="Биография" value={bio} onChange={setBio} rows={4} placeholder="Биография музыканта..." />
+          <FormInput label="Дата рождения" type="date" value={birthDate} onChange={setBirthDate} />
+          <FormTextarea label="Биография" value={biography} onChange={setBiography} rows={4} />
+          <FormInput label="Инструменты (через запятую)" value={instruments} onChange={setInstruments} placeholder="Скрипка, фортепиано" />
 
-          {/* Instruments */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Инструменты</label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {instruments.map(inst => (
-                <span key={inst} className="inline-flex items-center gap-1.5 bg-primary/15 text-primary border border-primary/30 px-2 py-1 text-xs">
-                  {inst}
-                  <button type="button" onClick={() => removeInstrument(inst)} className="hover:text-red-400 transition-colors">
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input type="text" value={newInst} onChange={e => setNewInst(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addInstrument(); } }}
-                placeholder="Добавить инструмент..."
-                className="flex-1 bg-secondary border border-border text-foreground placeholder-muted-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary/60 transition-colors" />
-              <Btn type="button" variant="secondary" onClick={addInstrument}><Plus size={14} /></Btn>
-            </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">
+              Фото музыканта
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="text-sm text-foreground file:mr-4 file:py-2 file:px-4 file:bg-primary file:text-primary-foreground file:border-0 file:text-xs hover:file:bg-primary/80 transition-colors"
+            />
+            {preview && (
+              <div className="mt-3">
+                <img src={preview} alt="Предпросмотр" className="w-24 h-24 object-cover rounded-full border border-border" />
+              </div>
+            )}
           </div>
-
-          <FormInput label="URL фотографии" value={photo} onChange={setPhoto} placeholder="https://..." />
-          {photo && (
-            <div className="w-20 h-20 overflow-hidden bg-secondary border border-border rounded-full">
-              <img src={photo} alt="Фото" className="w-full h-full object-cover" />
-            </div>
-          )}
 
           <div className="flex gap-3 justify-end pt-3 border-t border-border">
             <Btn variant="ghost" onClick={() => navigate("admin-musicians")}>Отмена</Btn>
