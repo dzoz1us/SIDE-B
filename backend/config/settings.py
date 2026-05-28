@@ -12,6 +12,7 @@ ALLOWED_HOSTS = ['*']
 
 # Приложения
 INSTALLED_APPS = [
+    'api',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

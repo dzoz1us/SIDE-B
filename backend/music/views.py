@@ -20,6 +20,17 @@ class EnsembleViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return EnsembleListSerializer
         return EnsembleDetailSerializer
+    
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            if not request.user.is_admin:
+                self.permission_denied(request)
 
 
 class MusicianViewSet(viewsets.ModelViewSet):
